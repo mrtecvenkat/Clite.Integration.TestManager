@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NPOI.HSSF.UserModel;
+using NPOI.XSSF.UserModel;
 using NPOI.SS.UserModel;
 using System.IO;
 using System.Collections;
@@ -12,7 +13,7 @@ namespace NPOIExcelHlper.Core.Helper
 {
     public class NPOIExcelHelper
     {
-        private HSSFWorkbook wb = null;
+        private IWorkbook wb = null;
         public NPOIExcelHelper(string filePath)
         {
             try
@@ -24,17 +25,29 @@ namespace NPOIExcelHlper.Core.Helper
             }
             catch (Exception er)
             {
-                wb = null;
+                try
+                {
+                    using (FileStream targetFile = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+                    {
+                        wb = new XSSFWorkbook(targetFile);
+                    }
+                }
+                catch (Exception err)
+                {
+                    wb = null;
+                }
             }
         }
         public List<Dictionary<string, string>> GetAllRowsValuesWithColumnMapping(string sheetName, int columnRowIndex = 0)
         {
-            HSSFSheet targetSheet = null;
+            if (wb == null)
+                return null;
+            ISheet targetSheet = null;
             for (int i = 0; i < wb.NumberOfSheets; i++)
             {
                 if (wb.GetSheetName(i) == sheetName)
                 {
-                    targetSheet = (HSSFSheet)wb.GetSheetAt(i);
+                    targetSheet = wb.GetSheetAt(i);
                     break;
                 }
             }
@@ -42,7 +55,7 @@ namespace NPOIExcelHlper.Core.Helper
                 return null;
             return GetAllRowsValuesWithColumns(targetSheet, columnRowIndex);
         }
-        private List<Dictionary<string, string>> GetAllRowsValuesWithColumns(HSSFSheet curSheet, int columnRowIndex = 0)
+        private List<Dictionary<string, string>> GetAllRowsValuesWithColumns(ISheet curSheet, int columnRowIndex = 0)
         {
             List<Dictionary<string, string>> retval = new List<Dictionary<string, string>>();
             if (curSheet == null)
@@ -74,14 +87,14 @@ namespace NPOIExcelHlper.Core.Helper
             }
             return retval;
         }
-        private Dictionary<int, string> GetSheeColumnsIndex(HSSFSheet curSheet, int rowIndex = 0)
+        private Dictionary<int, string> GetSheeColumnsIndex(ISheet curSheet, int rowIndex = 0)
         {
             Dictionary<int, string> retval = new Dictionary<int, string>();
             if (curSheet == null)
                 return null;
             int i = 0;
 
-            List<string> curRowValues = GetSingleRowValue((HSSFRow)curSheet.GetRow(rowIndex));
+            List<string> curRowValues = GetSingleRowValue(curSheet.GetRow(rowIndex));
             foreach (string curitem in curRowValues)
             {
                 i++;
@@ -102,7 +115,7 @@ namespace NPOIExcelHlper.Core.Helper
 
             return curList;
         }
-        public List<List<string>> GetAllRowsValues(HSSFSheet curSheet)
+        public List<List<string>> GetAllRowsValues(ISheet curSheet)
         {
             List<List<string>> retval = new List<List<string>>();
             if (curSheet == null)
@@ -110,12 +123,12 @@ namespace NPOIExcelHlper.Core.Helper
             IEnumerator rows = curSheet.GetRowEnumerator();
             while (rows.MoveNext())
             {
-                HSSFRow curRow = (HSSFRow)rows.Current;
+                IRow curRow = (IRow)rows.Current;
                 retval.Add(GetSingleRowValue(curRow));
             }
             return retval;
         }
-        public List<string> GetSingleRowValue(HSSFRow curRow)
+        public List<string> GetSingleRowValue(IRow curRow)
         {
             List<string> curList = new List<string>();
             if (curRow == null)
@@ -123,12 +136,12 @@ namespace NPOIExcelHlper.Core.Helper
             IEnumerator columns = curRow.GetEnumerator();
             while (columns.MoveNext())
             {
-                HSSFCell curCell = (HSSFCell)columns.Current;
+                ICell curCell = (ICell)columns.Current;
                 curList.Add(GetCellValue(curCell));
             }
             return curList;
         }
-        public string GetCellValue(HSSFCell curCell)
+        public string GetCellValue(ICell curCell)
         {
             string retval = null;
             if (curCell.CellType == CellType.String)
